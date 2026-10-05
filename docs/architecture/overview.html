@@ -1,0 +1,224 @@
+<!doctype html>
+<!-- source: ai / ratified: false / date: 2026-10-05 -->
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TinyData · The job ecosystem: architecture overview</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2710%27 fill=%27%23111%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FFFFFF; --ink:#111111; --soft:#555555; --label:#6B6B6B; --hair:#E3E3E3; --rule:#111111;
+    --tint:#F5F5F5; --panel:#FAFAFA; --box:#FFFFFF; --inv:#111111; --inv-ink:#FFFFFF;
+    --serif:Fraunces,Georgia,serif; --sans:Inter,system-ui,-apple-system,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --gutter:clamp(1rem,4vw,2.5rem);
+    color-scheme:light dark;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#161616; --ink:#F2F2F2; --soft:#B0B0B0; --label:#9A9A9A; --hair:#333333; --rule:#F2F2F2;
+      --tint:#1F1F1F; --panel:#1B1B1B; --box:#1B1B1B; --inv:#F2F2F2; --inv-ink:#111111;
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{font-size:16px;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;min-height:100vh;display:flex;flex-direction:column}
+  a{color:inherit;text-underline-offset:2px;overflow-wrap:anywhere}
+  :focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+
+  .bar{display:flex;align-items:center;justify-content:space-between;gap:.5rem 1rem;flex-wrap:wrap;
+    padding:.7rem var(--gutter);border-bottom:1px solid #333;background:#161616;
+    font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:#9A9A9A}
+  .bar .id{display:flex;align-items:center;gap:.6rem;min-width:0;flex-wrap:wrap}
+  .bar .dot{width:.6rem;height:.6rem;border-radius:50%;background:#fff;flex:none}
+  .bar b{font-family:var(--sans);font-size:1.02rem;font-weight:600;letter-spacing:-.01em;text-transform:none;color:#fff}
+
+  main{flex:1;width:min(1180px,100%);margin:0 auto;padding:1.8rem var(--gutter) 2.4rem;min-width:0}
+  .eyebrow{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--label);display:block;margin-bottom:.45rem}
+  h1{font-family:var(--serif);font-weight:400;font-size:clamp(1.7rem,4vw,2.6rem);letter-spacing:-.02em;line-height:1.08;max-width:24ch;text-wrap:balance}
+  h2{font-family:var(--serif);font-weight:400;font-size:1.2rem;letter-spacing:-.01em;line-height:1.2;margin-bottom:.55rem}
+  .lede{margin-top:.8rem;max-width:68ch;color:var(--soft);font-size:.98rem}
+  blockquote{margin-top:1rem;border-left:2px solid var(--ink);padding:.1rem 0 .1rem .9rem;font-family:var(--serif);font-size:.95rem;color:var(--soft);max-width:78ch}
+  blockquote cite{display:block;margin-top:.35rem;font-family:var(--mono);font-style:normal;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--label)}
+
+  .grid{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:1.6rem;margin-top:1.6rem;align-items:start}
+  .diagram{border:1px solid var(--rule);background:var(--panel);padding:.6rem;min-width:0}
+  .diagram svg{display:block;width:100%;height:auto}
+  .side{display:flex;flex-direction:column;gap:1.3rem;min-width:0}
+  .card{border-top:1px solid var(--rule);padding-top:.8rem}
+  ol,ul{padding-left:1.15rem;font-size:.88rem}
+  li{margin-top:.38rem}
+  li b{font-weight:600}
+  .ms{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--rule)}
+  .ms div{padding:.7rem .8rem;border-right:1px solid var(--hair);min-width:0;font-size:.82rem;color:var(--soft)}
+  .ms div:last-child{border-right:0}
+  .ms b{display:block;font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);margin-bottom:.3rem}
+  .ms i{display:block;font-style:normal;font-family:var(--serif);font-size:1rem;color:var(--ink);margin-bottom:.25rem}
+  code{font-family:var(--mono);font-size:.8em;background:var(--tint);padding:.03rem .25rem;border:1px solid var(--hair);overflow-wrap:anywhere}
+
+  footer{border-top:1px solid var(--hair);padding:1rem var(--gutter);font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--label);display:flex;justify-content:space-between;gap:.5rem 1rem;flex-wrap:wrap}
+  footer .tag{font-family:var(--serif);font-size:.95rem;letter-spacing:0;text-transform:none;color:var(--ink)}
+
+  /* SVG */
+  .s-box{fill:var(--box);stroke:var(--rule);stroke-width:1}
+  .s-inv{fill:var(--inv)}
+  .s-inv-t{fill:var(--inv-ink)}
+  .s-band{fill:none;stroke:var(--hair);stroke-width:1}
+  .s-t{fill:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:11.5px;font-weight:500}
+  .s-s{fill:var(--soft);font-family:Inter,system-ui,sans-serif;font-size:9.5px}
+  .s-l{fill:var(--label);font-family:"JetBrains Mono",ui-monospace,monospace;font-size:8.5px;letter-spacing:.12em}
+  .s-arrow{stroke:var(--ink);stroke-width:1.2;fill:none}
+  .s-wall{stroke:var(--ink);stroke-width:1.6;stroke-dasharray:5 4}
+  .s-wall-t{fill:var(--ink);font-family:"JetBrains Mono",ui-monospace,monospace;font-size:8.5px;letter-spacing:.08em}
+  .s-t.s-inv-t{fill:var(--inv-ink)}
+  .s-s.s-inv-t{fill:var(--inv-ink);opacity:.82}
+
+  @media (max-width:820px){
+    .grid{grid-template-columns:minmax(0,1fr)}
+    .ms{grid-template-columns:minmax(0,1fr)}
+    .ms div{border-right:0;border-bottom:1px solid var(--hair)}
+    .ms div:last-child{border-bottom:0}
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="id"><span class="dot" aria-hidden="true"></span><b>TinyData</b><span>Job ecosystem · architecture</span></div>
+  <span>Proposed · not ratified · 5 Oct 2026</span>
+</header>
+
+<main>
+  <span class="eyebrow">The first vertical ecosystem: jobs, then travel</span>
+  <h1>A synthetic UK job market you can run experiments on.</h1>
+  <p class="lede">About 2,000 open jobs and the people who could fill them, across Professional &amp; Business Services, Technology &amp; Digital and Finance &amp; Insurance. The same population runs under different market designs, agents, rules and AI scenarios; every run reports the same 25 measures, so the differences are the findings.</p>
+  <blockquote>“This needs to have real foundational layers, it needs to have real database layers, it needs to have real kind of operating uh, approaches that we can that we can use to ask economic questions”<cite>Soren, 5 October 2026</cite></blockquote>
+
+  <div class="grid">
+    <figure class="diagram" aria-labelledby="dg-title">
+      <svg viewBox="0 0 360 742" role="img" aria-labelledby="dg-title dg-desc" xmlns="http://www.w3.org/2000/svg">
+        <title id="dg-title">The layered architecture</title>
+        <desc id="dg-desc">Four bands from top to bottom: surfaces; asking questions; the running ecosystem with agents, operators, the single-writer vault engine and its chained market log, the time engine and AI scenarios; then a dashed wall the vault never reads past; then foundations: signals, hidden truth, population synthesis and reference data; all on PostgreSQL 16.</desc>
+
+        <!-- SURFACES -->
+        <text class="s-l" x="8" y="14">SURFACES</text>
+        <rect class="s-box" x="8" y="20" width="110" height="34"/><text class="s-t" x="63" y="41" text-anchor="middle">Questions</text>
+        <rect class="s-box" x="125" y="20" width="110" height="34"/><text class="s-t" x="180" y="41" text-anchor="middle">Dashboards</text>
+        <rect class="s-box" x="242" y="20" width="110" height="34"/><text class="s-t" x="297" y="41" text-anchor="middle">Scenarios</text>
+        <rect class="s-box" x="8" y="60" width="110" height="34"/><text class="s-t" x="63" y="81" text-anchor="middle">Onboarding x2</text>
+        <rect class="s-box" x="125" y="60" width="110" height="34"/><text class="s-t" x="180" y="81" text-anchor="middle">Operator console</text>
+        <rect class="s-box" x="242" y="60" width="110" height="34"/><text class="s-t" x="297" y="81" text-anchor="middle">Careers export</text>
+        <text class="s-s" x="180" y="108" text-anchor="middle">read-only reporting schema; queries shown with answers</text>
+
+        <!-- ASKING QUESTIONS -->
+        <text class="s-l" x="8" y="132">ASKING QUESTIONS</text>
+        <rect class="s-inv" x="8" y="138" width="344" height="40"/>
+        <text class="s-t s-inv-t" x="180" y="155" text-anchor="middle">Experiment harness</text>
+        <text class="s-s s-inv-t" x="180" y="170" text-anchor="middle">population x market x agents x rules x scenario, 20 seeds</text>
+        <rect class="s-box" x="8" y="184" width="168" height="38"/>
+        <text class="s-t" x="92" y="200" text-anchor="middle">Scorecard</text><text class="s-s" x="92" y="214" text-anchor="middle">SC-01 to SC-25</text>
+        <rect class="s-box" x="184" y="184" width="168" height="38"/>
+        <text class="s-t" x="268" y="200" text-anchor="middle">Financial model</text><text class="s-s" x="268" y="214" text-anchor="middle">plan mode reconciles to Simon</text>
+
+        <!-- RUNNING -->
+        <text class="s-l" x="8" y="246">THE RUNNING ECOSYSTEM</text>
+        <rect class="s-box" x="8" y="252" width="230" height="40"/>
+        <text class="s-t" x="123" y="269" text-anchor="middle">Agents: one decision interface</text>
+        <text class="s-s" x="123" y="284" text-anchor="middle">rules · archetypes · live sample of 50 to 100</text>
+        <rect class="s-box" x="246" y="252" width="106" height="40"/>
+        <text class="s-t" x="299" y="269" text-anchor="middle">Operators</text>
+        <text class="s-s" x="299" y="284" text-anchor="middle">two-person rule</text>
+        <path class="s-arrow" d="M123 292 V306 M119 302 L123 307 L127 302"/>
+        <path class="s-arrow" d="M299 292 V306 M295 302 L299 307 L303 302"/>
+        <text class="s-s" x="180" y="304" text-anchor="middle">typed actions</text>
+        <rect class="s-inv" x="8" y="310" width="344" height="44"/>
+        <text class="s-t s-inv-t" x="180" y="328" text-anchor="middle">Market and vault rules engine</text>
+        <text class="s-s s-inv-t" x="180" y="344" text-anchor="middle">single writer · rules in code · no paid input to a match</text>
+        <path class="s-arrow" d="M180 354 V366 M176 362 L180 367 L184 362"/>
+        <rect class="s-box" x="8" y="370" width="344" height="30"/>
+        <text class="s-t" x="180" y="389" text-anchor="middle">Market log: chained receipts, careers format</text>
+        <rect class="s-box" x="8" y="406" width="168" height="38"/>
+        <text class="s-t" x="92" y="422" text-anchor="middle">Time engine</text><text class="s-s" x="92" y="436" text-anchor="middle">months, weekly sub-steps</text>
+        <rect class="s-box" x="184" y="406" width="168" height="38"/>
+        <text class="s-t" x="268" y="422" text-anchor="middle">AI scenarios</text><text class="s-s" x="268" y="436" text-anchor="middle">modest · substantial · extreme</text>
+
+        <!-- WALL -->
+        <line class="s-wall" x1="8" y1="462" x2="352" y2="462"/>
+        <text class="s-wall-t" x="180" y="478" text-anchor="middle">THE VAULT NEVER READS BELOW THIS LINE</text>
+
+        <!-- FOUNDATIONS -->
+        <text class="s-l" x="8" y="500">FOUNDATIONS</text>
+        <rect class="s-box" x="8" y="506" width="168" height="38"/>
+        <text class="s-t" x="92" y="522" text-anchor="middle">Signals</text><text class="s-s" x="92" y="536" text-anchor="middle">noisy views; labels cross</text>
+        <rect class="s-box" x="184" y="506" width="168" height="38"/>
+        <text class="s-t" x="268" y="522" text-anchor="middle">Hidden truth</text><text class="s-s" x="268" y="536" text-anchor="middle">capability · way of working</text>
+        <rect class="s-box" x="8" y="550" width="344" height="40"/>
+        <text class="s-t" x="180" y="567" text-anchor="middle">Population synthesis</text>
+        <text class="s-s" x="180" y="582" text-anchor="middle">2,000 open jobs · 5,000 profiled people · checked against ONS</text>
+        <rect class="s-box" x="8" y="596" width="344" height="40"/>
+        <text class="s-t" x="180" y="613" text-anchor="middle">Reference data, every figure sourced</text>
+        <text class="s-s" x="180" y="628" text-anchor="middle">SOC · SIC · ASHE · vacancies · O*NET tasks · Simon's plan</text>
+
+        <!-- DATABASE -->
+        <rect class="s-inv" x="8" y="650" width="344" height="58"/>
+        <text class="s-t s-inv-t" x="180" y="670" text-anchor="middle">PostgreSQL 16 · roles are the firewall</text>
+        <text class="s-s s-inv-t" x="180" y="686" text-anchor="middle">meta · ref · pop · jobs · truth · sig</text>
+        <text class="s-s s-inv-t" x="180" y="700" text-anchor="middle">sim · fin · rpt · qi</text>
+        <text class="s-s" x="180" y="730" text-anchor="middle">All records synthetic, enforced in the schema.</text>
+      </svg>
+    </figure>
+
+    <div class="side">
+      <section class="card" aria-labelledby="h-dec">
+        <h2 id="h-dec">Five decisions that carry the weight</h2>
+        <ol>
+          <li><b>One writer, typed actions, chained receipts</b> in the careers vault format, so the ecosystem can be audited like the real vault.</li>
+          <li><b>Hidden truth walled off from the vault</b>, in code and in database grants, so signal value, shoehorning and fit over time can be measured honestly.</li>
+          <li><b>Three agent tiers behind one interface</b>, with every model call taped so any run replays without calling a model.</li>
+          <li><b>One sampling fraction for people and jobs</b>, so the market's tightness is real; the agreed 5,000 become the profiled tier. <i>Needs your approval.</i></li>
+          <li><b>A financial model that must reproduce Simon's plan</b> to the pound, then re-runs it on the funnel each experiment actually produced, net of operator cost.</li>
+        </ol>
+      </section>
+
+      <section class="card" aria-labelledby="h-ms">
+        <h2 id="h-ms">The first three milestones</h2>
+        <div class="ms">
+          <div><b>M0 · week 1</b><i>Foundations</i>Database, receipts and the firewall, tested; a tampered chain gets caught.</div>
+          <div><b>M1 · week 3</b><i>Reference data</i>Real function shares per sector, every source logged; two decisions for Simon.</div>
+          <div><b>M2 · week 6</b><i>Population</i>Validated release, a browsable page and the first research readout.</div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h-op">
+        <h2 id="h-op">Also in: the vault operator console</h2>
+        <ul>
+          <li>Ten queues, from company checks and fake jobs to disputes, auditor access and record integrity.</li>
+          <li>Operators never see identities, cannot change a score or a match, and every action is a receipt.</li>
+          <li>Workload is simulated, scored and costed in the financial model.</li>
+        </ul>
+      </section>
+
+      <section class="card" aria-labelledby="h-q">
+        <h2 id="h-q">Questions for you</h2>
+        <ul>
+          <li>Approve the population scale (about 87,000 structured, 5,000 profiled)?</li>
+          <li>May we ask Simon for his workbook cell by cell?</li>
+          <li>Which entities count as "TinyData take"?</li>
+          <li>Synthetic personas only on the onboarding pages for now?</li>
+        </ul>
+        <p class="lede" style="font-size:.84rem;margin-top:.7rem">Full set of ten in <code>ARCHITECTURE.md</code> section 13; build plan in <code>BUILD-PLAN.md</code>.</p>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <span class="tag">Restore balance. Rebuild trust.</span>
+  <span>Synthetic data only · figures cited in docs/research</span>
+</footer>
+</body>
+</html>
